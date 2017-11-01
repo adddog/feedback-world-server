@@ -1,0 +1,13 @@
+bower_components
+node_modules
+*.log
+.DS_Store
+
+*.min.js
+*.min.css
+*.map
+package-lock.json
+.env
+ssl
+config/sslcerts
+yt.json
