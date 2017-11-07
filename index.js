@@ -1,5 +1,5 @@
 require("dotenv").config()
-var ip = require('ip');
+var ip = require("ip")
 const spawn = require("child_process").spawnSync
 const RS = require("randomstring")
 const fs = require("fs")
@@ -14,6 +14,7 @@ var bodyParser = require("body-parser")
 const fileUpload = require("express-fileupload")
 const SignalSockets = require("signal-master/sockets")
 const config = require("getconfig")
+var getHomePath = require("home-path")
 
 const Passport = require("./passport")
 
@@ -30,37 +31,18 @@ const {
 } = require("lodash")
 const { parse } = require("path")
 
+//*******************
+//EXPRESS
+//*******************
+
 const app = express()
-
-app.get("/", function(req, res, next) {
-  res.send("Hello world!")
-})
-
-var getHomePath = require("home-path")
-
-var server = https.createServer(
-  {
-    key: fs.readFileSync(
-      path.join(getHomePath(), ".localhost-ssl/key.pem")
-    ),
-    cert: fs.readFileSync(
-      path.join(getHomePath(), ".localhost-ssl/cert.pem")
-    ),
-  },
-  app
-)
-
-const host = process.env.NODE_ENV==="production" ? "127.0.0.1" : "0.0.0.0"
-server.listen(process.env.PORT, host)
-
-console.log(`Listening https on port  ${process.env.PORT}  on  ${host}`)
 
 var options = {
   debug: true,
 }
 
 app.use(cors())
-app.use(require("express-force-ssl"))
+//app.use(require("express-force-ssl"))
 app.use(bodyParser.urlencoded({ extended: false }))
 app.use(
   fileUpload({
@@ -71,7 +53,34 @@ app.use(
 var router = express.Router()
 app.use(router)
 
+/*var server = https.createServer(
+  {
+    key: fs.readFileSync(
+      path.join(getHomePath(), ".localhost-ssl/local_key.pem")
+    ),
+    cert: fs.readFileSync(
+      path.join(getHomePath(), ".localhost-ssl/local_cert.pem")
+    ),
+  },
+  app
+)*/
+
+const host =
+  process.env.NODE_ENV === "production" ? "127.0.0.1" : "localhost"
+
+//server.listen(process.env.PORT, host)
+
+var server = app.listen(process.env.PORT)
+
+console.log(
+  `Listening ${process.env.PROTOCALL} on port  ${process.env.PORT}  on  ${host}`
+)
+
 const passport = Passport(app)
+
+//*******************
+//express ROUTING
+//*******************
 
 router.post("/upload", function(req, res) {
   if (!req.files)
@@ -95,17 +104,35 @@ router.post("/upload", function(req, res) {
   res.send({ videoId: stdout })
 })
 
+router.get("/", function(req, res) {
+  res.status(200).send("nothing to see here...")
+})
+
+router.get("/room", function(req, res) {
+  res.send({ roomId: getNewRoom() })
+})
+
+//*******************
+//SOCKETS
+//*******************
+
+const MAX_MEMBERS_ROOM = 4
+
 var io = SignalSockets(server, config)
 
-const users = {}
-const rooms = {}
-const userIds = []
+const userIds = new Set()
+const rooms = new Map()
 const roomIds = new Set()
 
-const getAvailableRoomIdsToJoin = () =>
-  values(rooms)
-    .filter(({ members }) => members.length <= 4)
-    .map(({ id }) => id)
+const getAvailableRoomIdsToJoin = () => {
+  let _roomIds = []
+  for (let room of rooms.values()) {
+    if (room.members.size < MAX_MEMBERS_ROOM) {
+      _roomIds.push(room.id)
+    }
+  }
+  return _roomIds
+}
 
 const getNewRoom = () => {
   let r, _found
@@ -119,91 +146,113 @@ const getNewRoom = () => {
   return r
 }
 
-router.get("/", function(req, res) {
-  res.status(200).send("nothing to see here...")
-})
+const createRoom = ({ socketId, roomId }) => {
+  if (rooms.has(roomId)) {
+    rooms.get(roomId).members.add(socketId)
+  } else {
+    rooms.set(roomId, {
+      id: roomId,
+      members: new Set([socketId]),
+    })
+    console.log(colors.green(`Broadcast room:get ${roomId}`))
+  }
+  console.log(
+    `members in romm ${roomId}: ${rooms.get(roomId).members.size}`
+  )
+  console.log(rooms.values())
+  io.sockets.emit("rooms:get", getAvailableRoomIdsToJoin())
+}
 
-router.get("/room", function(req, res) {
-  console.log(getNewRoom())
-  res.send({ roomId: getNewRoom() })
-})
+const leaveRoom = ({ socketId, roomId }) => {
+  if (rooms.has(roomId)) {
+    let room = rooms.get(roomId)
+    console.log(room)
+    room.members.delete(socketId)
+    console.log(
+      colors.green(`member ${socketId} has left room ${roomId}. members left: ${room.members.size}`)
+    )
+    destroyRoomIfNoMembers({ room, roomId })
+      /*console.log(
+        `members in room ${roomId}: ${room.members.size}`
+      )*/
+    io.sockets.emit("rooms:get", getAvailableRoomIdsToJoin())
+  }else{
+    console.log(`trying to leaveRoom ${roomId} but it doesnt exist`);
+  }
+}
+
+const destroyRoomIfNoMembers = ({ room, roomId }) => {
+  if (!room.members) return
+  if (!room.members.size) {
+    room.members.clear()
+    room.members = null
+    rooms.delete(roomId)
+    console.log(`room destroyed: ${roomId}`)
+  }
+}
 
 io.on("connection", function(socket) {
+  userIds.add(socket.id)
+  console.log(colors.green(`Reveived id ${socket.id}`))
+  console.log(colors.green(`All userIds`))
+  console.log(userIds)
+
   socket.on("disconnect", function() {
-    for (const roomId in rooms) {
-      let room = rooms[roomId]
-      room.members.forEach((member, i) => {
-        console.log("-------")
-        console.log(member.socketId, socket.socketId)
-        console.log(member.socketId === socket.socketId)
-        console.log("-------")
-        if (member.socketId === socket.socketId) {
-          member = null
-          room.members[i] = null
-        }
-      })
-      room.members = compact(room.members)
-      if (!room.members.length) {
-        rooms[roomId] = null
-        delete rooms[roomId]
-      }
+
+    for (let room of rooms.values()) {
+      leaveRoom({ socketId: socket.id, roomId: room.id })
+      destroyRoomIfNoMembers({ room, roomId: room.id })
     }
-    io.sockets.emit("rooms:get", keys(rooms))
-    var i = userIds.indexOf(socket.socketId)
-    console.log(colors.green(`Rooms: ${JSON.stringify(rooms)}`))
-    console.log(colors.red(`Disconnected id at index ${i}`))
+
+    io.sockets.emit("rooms:get", getAvailableRoomIdsToJoin())
+    userIds.delete(socket.id)
+
+    console.log(colors.green(`Room remaining: ${rooms.size}`))
     forIn(socket._events, (val, key) => {
       if (isFunction(val)) {
         socket.removeListener(key, val)
         val = null
       }
     })
-    if (i >= 0) {
-      userIds.splice(i, 1)
-      delete users[socket.socketId]
-      console.log(colors.red(`Disconnected id ${socket.socketId}`))
-      console.log(colors.yellow(`Users remaining ${userIds.length}`))
+    console.log(colors.red(`Disconnected id ${socket.id}`))
+    console.log(colors.yellow(`Users remaining ${userIds.size}`))
+  })
+
+  socket.on("handshake", function(data = {}) {
+    if (data.roomId) {
+      createRoom({ socketId: socket.id, roomId: data.roomId })
     }
   })
 
-  socket.on("handshake", id => {
-    users[id] = socket
-    users[id].socketId = id
-    if (userIds.indexOf(id) < 0) {
-      userIds.push(id)
-    }
-    console.log(colors.green(`Reveived id ${id}`))
-    console.log(colors.green(`All userIds`))
-    console.log(userIds)
-    socket.emit("handshake", getNewRoom())
-  })
+  //******
 
-  socket.on("peer:connect", data => {
-    const { peerId, id } = data
-    users[peerId].emit("peer:connect:request", id)
+  socket.on("room:create", ({ roomId }) => {
+    createRoom({ socketId: socket.id, roomId })
   })
+  //******
 
-  socket.on("peer:connect:accept", data => {
-    const { peerId, id } = data
-    users[peerId].emit("peer:connect:accepted", id)
-    socket.emit("peer:connect:accepted", peerId)
+  //******
+
+  socket.on("room:leave", function({ roomId }) {
+    leaveRoom({ socketId: socket.id, roomId })
   })
+  //******
 
-  socket.on("room:create", roomId => {
-    rooms[roomId] = rooms[roomId] || {
-      id: roomId,
-      members: [],
-    }
-    roomIds.add(roomId)
-    if (!find(rooms[roomId].members, { socketId: socket.socketId })) {
-      rooms[roomId].members.push({ socketId: socket.socketId })
-    }
-    console.log(colors.green(`Broadcast ${roomId}`))
-    console.log(`members: ${rooms[roomId].members.length}`)
-    io.sockets.emit("rooms:get", getAvailableRoomIdsToJoin())
-  })
-
-  socket.on("rooms:get", () => {
+  socket.on("rooms:get", function() {
     socket.emit("rooms:get", getAvailableRoomIdsToJoin())
+  })
+
+  socket.on("rooms:canJoin", function({ roomId }) {
+    if (!rooms.get(roomId)) {
+      socket.emit("rooms:canJoin", {
+        canJoin: true,
+        members: null,
+      })
+    } else {
+      socket.emit("rooms:canJoin", {
+        canJoin: rooms.get(roomId).members.size < MAX_MEMBERS_ROOM,
+        members: rooms.get(roomId).members.size,
+      })
+    }
   })
 })
