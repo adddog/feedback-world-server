@@ -1,5 +1,6 @@
 require("dotenv").config()
 var ip = require("ip")
+const wu = require("wu")
 const spawn = require("child_process").spawnSync
 const RS = require("randomstring")
 const fs = require("fs")
@@ -73,7 +74,8 @@ const host =
 var server = app.listen(process.env.PORT)
 
 console.log(
-  `Listening ${process.env.PROTOCALL} on port  ${process.env.PORT}  on  ${host}`
+  `Listening ${process.env.PROTOCALL} on port  ${process.env
+    .PORT}  on  ${host}`
 )
 
 const passport = Passport(app)
@@ -120,6 +122,7 @@ const MAX_MEMBERS_ROOM = 4
 
 var io = SignalSockets(server, config)
 
+const sockets = new Map()
 const userIds = new Set()
 const rooms = new Map()
 const roomIds = new Set()
@@ -146,14 +149,20 @@ const getNewRoom = () => {
   return r
 }
 
-const createRoom = ({ socketId, roomId }) => {
+const createRoom = ({ socketId, roomId, desktop }) => {
+  console.log("000000000000")
+  console.log(desktop)
+  console.log("000000000000")
+  const member = { id: socketId, desktop: desktop }
   if (rooms.has(roomId)) {
-    rooms.get(roomId).members.add(socketId)
+    rooms.get(roomId).members.set(socketId, member)
   } else {
     rooms.set(roomId, {
       id: roomId,
-      members: new Set([socketId]),
+      members: new Map(),
     })
+    rooms.get(roomId).members.set(socketId, member)
+
     console.log(colors.green(`Broadcast room:get ${roomId}`))
   }
   console.log(
@@ -166,18 +175,17 @@ const createRoom = ({ socketId, roomId }) => {
 const leaveRoom = ({ socketId, roomId }) => {
   if (rooms.has(roomId)) {
     let room = rooms.get(roomId)
-    console.log(room)
     room.members.delete(socketId)
     console.log(
-      colors.green(`member ${socketId} has left room ${roomId}. members left: ${room.members.size}`)
+      colors.green(
+        `member ${socketId} has left room ${roomId}. members left: ${room
+          .members.size}`
+      )
     )
     destroyRoomIfNoMembers({ room, roomId })
-      /*console.log(
-        `members in room ${roomId}: ${room.members.size}`
-      )*/
     io.sockets.emit("rooms:get", getAvailableRoomIdsToJoin())
-  }else{
-    console.log(`trying to leaveRoom ${roomId} but it doesnt exist`);
+  } else {
+    console.log(`trying to leaveRoom ${roomId} but it doesnt exist`)
   }
 }
 
@@ -191,14 +199,31 @@ const destroyRoomIfNoMembers = ({ room, roomId }) => {
   }
 }
 
+//DEPRICTED
+const alertMembersOfNewSocket = ({ roomId }) => {
+  if (rooms.has(roomId)) {
+    let room = rooms.get(roomId)
+    for (let { id } of room.members.values()) {
+      sockets.get(id).emit("room:newmember")
+    }
+  }
+}
+
+const canSocketJoinRoom = ({ roomId, desktop }) =>
+  rooms.get(roomId).members.size < MAX_MEMBERS_ROOM &&
+  wu(rooms.get(roomId).members.values())
+    .takeWhile(v => v.desktop)
+    .toArray().length <= 1
+
 io.on("connection", function(socket) {
+  sockets.set(socket.id, socket)
   userIds.add(socket.id)
   console.log(colors.green(`Reveived id ${socket.id}`))
   console.log(colors.green(`All userIds`))
   console.log(userIds)
 
   socket.on("disconnect", function() {
-
+    sockets.delete(socket.id)
     for (let room of rooms.values()) {
       leaveRoom({ socketId: socket.id, roomId: room.id })
       destroyRoomIfNoMembers({ room, roomId: room.id })
@@ -218,16 +243,12 @@ io.on("connection", function(socket) {
     console.log(colors.yellow(`Users remaining ${userIds.size}`))
   })
 
-  socket.on("handshake", function(data = {}) {
-    if (data.roomId) {
-      createRoom({ socketId: socket.id, roomId: data.roomId })
-    }
-  })
+  socket.on("handshake", function(data = {}) {})
 
   //******
 
-  socket.on("room:create", ({ roomId }) => {
-    createRoom({ socketId: socket.id, roomId })
+  socket.on("room:create", ({ roomId, desktop }) => {
+    createRoom({ socketId: socket.id, roomId, desktop })
   })
   //******
 
@@ -242,15 +263,17 @@ io.on("connection", function(socket) {
     socket.emit("rooms:get", getAvailableRoomIdsToJoin())
   })
 
-  socket.on("rooms:canJoin", function({ roomId }) {
+  socket.on("rooms:canJoin", function({ roomId, desktop }) {
+    console.log(`Joinging room ${roomId} as a desktop ${desktop}`);
     if (!rooms.get(roomId)) {
+      //alertMembersOfNewSocket({ roomId })
       socket.emit("rooms:canJoin", {
         canJoin: true,
         members: null,
       })
     } else {
       socket.emit("rooms:canJoin", {
-        canJoin: rooms.get(roomId).members.size < MAX_MEMBERS_ROOM,
+        canJoin: canSocketJoinRoom({ roomId, desktop }), //rooms.get(roomId).members.size < MAX_MEMBERS_ROOM,
         members: rooms.get(roomId).members.size,
       })
     }
