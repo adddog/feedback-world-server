@@ -2,10 +2,18 @@ const ChewbPassport = require("chewb-passport")
 
 module.exports = app => {
   const host = process.env.HOST || "localhost"
+
+  const FRONT_END =
+    process.NODE_ENV === "production"
+      ? process.env.FRONT_END
+      : `${process.env.PROTOCALL}://${host}:${process.env.CHOO_PORT}`
+
   const callbackURL =
     process.env.NODE_ENV === "production"
-      ? "https://rad.wtf/feedback"
+      ? process.env.FRONT_END
       : `${process.env.PROTOCALL}://${host}:${process.env.CHOO_PORT}`
+
+
   let strats = [
     {
       name: "facebook",
@@ -13,7 +21,7 @@ module.exports = app => {
       clientSecret: process.env.FACEBOOK_SECRET,
       authUrl: "/login/facebook",
       redirectUrl: "/login/facebook/return",
-      callbackUrl: `${callbackURL}/login/facebook/success`,
+      callbackUrl: `${callbackURL}login/facebook/success`,
     },
     {
       name: "instagram",
@@ -22,7 +30,7 @@ module.exports = app => {
       clientSecret: process.env.INSTAGRAM_SECRET,
       authUrl: "/login/instagram",
       redirectUrl: `/login/instagram/return`,
-      callbackUrl: `${callbackURL}/login/instagram/success`,
+      callbackUrl: `${callbackURL}login/instagram/success`,
     },
     {
       name: "youtube",
@@ -37,13 +45,12 @@ module.exports = app => {
       clientSecret: process.env.YOUTUBE_SECRET,
       authUrl: "/login/youtube",
       redirectUrl: `/login/youtube/return`,
-      callbackUrl: `${callbackURL}/login/youtube/success`,
+      callbackUrl: `${callbackURL}login/youtube/success`,
     },
   ]
 
   let chewbPassport = new ChewbPassport(app, strats, {
-    host: `${process.env.PROTOCALL}://${host}:${process.env
-      .CHOO_PORT}`,
+    host: FRONT_END,
     baseRoute: "",
     logOut: true,
   })
