@@ -3,15 +3,10 @@ const ChewbPassport = require("chewb-passport")
 module.exports = app => {
   const host = process.env.HOST || "localhost"
 
-  const FRONT_END =
-    process.NODE_ENV === "production"
-      ? process.env.FRONT_END
-      : `${process.env.PROTOCALL}://${host}:${process.env.CHOO_PORT}`
-
   const callbackURL =
     process.env.NODE_ENV === "production"
       ? process.env.FRONT_END
-      : `${process.env.PROTOCALL}://${host}:${process.env.CHOO_PORT}`
+      : `${process.env.PROTOCALL}://${host}:${process.env.CHOO_PORT}/`
 
 
   let strats = [
@@ -50,7 +45,7 @@ module.exports = app => {
   ]
 
   let chewbPassport = new ChewbPassport(app, strats, {
-    host: FRONT_END,
+    host: callbackURL,
     baseRoute: "",
     logOut: true,
   })

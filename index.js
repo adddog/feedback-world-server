@@ -149,11 +149,20 @@ const getNewRoom = () => {
   return r
 }
 
+const getRoomByMemberSocket = socketId => {
+  for (let room of rooms.values()) {
+    if (room.members.get(socketId)) return room
+  }
+  return null
+}
+
 const createRoom = ({ socketId, roomId, desktop }) => {
-  console.log("000000000000")
-  console.log(desktop)
-  console.log("000000000000")
   const member = { id: socketId, desktop: desktop }
+  const exitsingRoom = getRoomByMemberSocket(socketId)
+  if (exitsingRoom) {
+    leaveRoom({ socketId, roomId: exitsingRoom.id })
+    console.log(colors.yellow(`Left ${exitsingRoom.id}`))
+  }
   if (rooms.has(roomId)) {
     rooms.get(roomId).members.set(socketId, member)
   } else {
@@ -209,11 +218,22 @@ const alertMembersOfNewSocket = ({ roomId }) => {
   }
 }
 
-const canSocketJoinRoom = ({ roomId, desktop }) =>
-  rooms.get(roomId).members.size < MAX_MEMBERS_ROOM &&
-  wu(rooms.get(roomId).members.values())
+const canSocketJoinRoom = ({ roomId, desktop }) => {
+  const numDesktops = wu(rooms.get(roomId).members.values())
     .takeWhile(v => v.desktop)
-    .toArray().length <= 1
+    .toArray().length
+  const numMobiles = wu(rooms.get(roomId).members.values())
+    .takeWhile(v => !v.desktop)
+    .toArray().length
+  if (rooms.get(roomId).members.size >= MAX_MEMBERS_ROOM) return false
+  if (numDesktops >= 3) return false
+  if (numMobiles < 1) {
+    return true
+  } else if (numMobiles <= 1 && numDesktops <= 2) {
+    return true
+  }
+}
+
 
 io.on("connection", function(socket) {
   sockets.set(socket.id, socket)
@@ -264,7 +284,7 @@ io.on("connection", function(socket) {
   })
 
   socket.on("rooms:canJoin", function({ roomId, desktop }) {
-    console.log(`Joinging room ${roomId} as a desktop ${desktop}`);
+    console.log(`Joinging room ${roomId} as a desktop ${desktop}`)
     if (!rooms.get(roomId)) {
       //alertMembersOfNewSocket({ roomId })
       socket.emit("rooms:canJoin", {

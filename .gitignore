@@ -11,3 +11,4 @@ package-lock.json
 ssl
 config/sslcerts
 yt.json
+*.psd
