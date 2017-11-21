@@ -1,5 +1,5 @@
 require("dotenv").config()
-var ip = require("ip")
+const ip = require("ip")
 const wu = require("wu")
 const spawn = require("child_process").spawnSync
 const RS = require("randomstring")
@@ -11,11 +11,11 @@ const path = require("path")
 const https = require("https")
 const http = require("http")
 const express = require("express")
-var bodyParser = require("body-parser")
+const bodyParser = require("body-parser")
 const fileUpload = require("express-fileupload")
 const SignalSockets = require("signal-master/sockets")
 const config = require("getconfig")
-var getHomePath = require("home-path")
+const getHomePath = require("home-path")
 
 const Passport = require("./passport")
 
@@ -37,6 +37,9 @@ const { parse } = require("path")
 //*******************
 
 const app = express()
+const host =
+  process.env.NODE_ENV === "production" ? "127.0.0.1" : "localhost"
+let server
 
 var options = {
   debug: true,
@@ -54,24 +57,22 @@ app.use(
 var router = express.Router()
 app.use(router)
 
-/*var server = https.createServer(
-  {
-    key: fs.readFileSync(
-      path.join(getHomePath(), ".localhost-ssl/local_key.pem")
-    ),
-    cert: fs.readFileSync(
-      path.join(getHomePath(), ".localhost-ssl/local_cert.pem")
-    ),
-  },
-  app
-)*/
-
-const host =
-  process.env.NODE_ENV === "production" ? "127.0.0.1" : "localhost"
-
-//server.listen(process.env.PORT, host)
-
-var server = app.listen(process.env.PORT)
+const isHTTPS = process.env.PROTOCALL === "https"
+if (isHTTPS) {
+  server = https.createServer(
+    {
+      key: fs.readFileSync(
+        path.join(getHomePath(), ".localhost-ssl/local_key.pem")
+      ),
+      cert: fs.readFileSync(
+        path.join(getHomePath(), ".localhost-ssl/local_cert.pem")
+      ),
+    },
+    app
+  )
+} else {
+  server = app.listen(process.env.PORT)
+}
 
 console.log(
   `Listening ${process.env.PROTOCALL} on port  ${process.env
@@ -233,7 +234,6 @@ const canSocketJoinRoom = ({ roomId, desktop }) => {
     return true
   }
 }
-
 
 io.on("connection", function(socket) {
   sockets.set(socket.id, socket)
