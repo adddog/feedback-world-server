@@ -51,7 +51,8 @@ module.exports = app => {
 
   let chewbPassport = new ChewbPassport(app, strats, {
     host: hostUrl,
-    baseRoute: baseRoute,
+    baseRedirectRoute: baseRoute,
+    baseRoute: "",
     logOut: true,
   })
 }
