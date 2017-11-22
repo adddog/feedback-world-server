@@ -9,7 +9,14 @@ module.exports = app => {
       ? process.env.FRONT_END
       : `${process.env.PROTOCALL}://${host}:${process.env.CHOO_PORT}/`
 
+
+  const redirectURL =
+    process.env.NODE_ENV === "production"
+      ? process.env.FRONT_END
+      : `/`
+
   console.log(colors.green(`callbackURL: ${callbackURL}`));
+  console.log(colors.green(`redirectURL: ${redirectURL}`));
 
   let strats = [
     {
@@ -17,7 +24,7 @@ module.exports = app => {
       clientId: process.env.FACEBOOK_ID,
       clientSecret: process.env.FACEBOOK_SECRET,
       authUrl: "/login/facebook",
-      redirectUrl: "/login/facebook/return",
+      redirectUrl: `${redirectURL}login/facebook/return`,
       callbackUrl: `${callbackURL}login/facebook/success`,
     },
     {
@@ -26,7 +33,7 @@ module.exports = app => {
       clientId: process.env.INSTAGRAM_ID,
       clientSecret: process.env.INSTAGRAM_SECRET,
       authUrl: "/login/instagram",
-      redirectUrl: `/login/instagram/return`,
+      redirectUrl: `${redirectURL}login/instagram/return`,
       callbackUrl: `${callbackURL}login/instagram/success`,
     },
     {
@@ -41,7 +48,7 @@ module.exports = app => {
       clientId: process.env.YOUTUBE_ID,
       clientSecret: process.env.YOUTUBE_SECRET,
       authUrl: "/login/youtube",
-      redirectUrl: `/login/youtube/return`,
+      redirectUrl: `${redirectURL}login/youtube/return`,
       callbackUrl: `${callbackURL}login/youtube/success`,
     },
   ]
