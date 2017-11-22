@@ -1,4 +1,5 @@
 const ChewbPassport = require("chewb-passport")
+const colors = require("colors")
 
 module.exports = app => {
   const host = process.env.HOST || "localhost"
@@ -8,6 +9,7 @@ module.exports = app => {
       ? process.env.FRONT_END
       : `${process.env.PROTOCALL}://${host}:${process.env.CHOO_PORT}/`
 
+  console.log(colors.green(`callbackURL: ${callbackURL}`));
 
   let strats = [
     {
