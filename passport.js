@@ -4,7 +4,7 @@ const colors = require("colors")
 module.exports = app => {
   const host = process.env.HOST || "localhost"
 
-  const callbackURL =
+  const hostUrl =
     process.env.NODE_ENV === "production"
       ? process.env.FRONT_END
       : `${process.env.PROTOCALL}://${host}:${process.env.CHOO_PORT}/`
@@ -15,8 +15,7 @@ module.exports = app => {
       ? process.env.FRONT_END
       : `/`
 
-  console.log(colors.green(`callbackURL: ${callbackURL}`));
-  console.log(colors.green(`redirectURL: ${redirectURL}`));
+  console.log(colors.green(`hostUrl: ${hostUrl}`));
 
   let strats = [
     {
@@ -24,8 +23,8 @@ module.exports = app => {
       clientId: process.env.FACEBOOK_ID,
       clientSecret: process.env.FACEBOOK_SECRET,
       authUrl: "/login/facebook",
-      redirectUrl: `${redirectURL}login/facebook/return`,
-      callbackUrl: `${callbackURL}login/facebook/success`,
+      redirectUrl: `login/facebook/return`,
+      callbackUrl: `${hostUrl}login/facebook/success`,
     },
     {
       name: "instagram",
@@ -33,8 +32,8 @@ module.exports = app => {
       clientId: process.env.INSTAGRAM_ID,
       clientSecret: process.env.INSTAGRAM_SECRET,
       authUrl: "/login/instagram",
-      redirectUrl: `${redirectURL}login/instagram/return`,
-      callbackUrl: `${callbackURL}login/instagram/success`,
+      redirectUrl: `login/instagram/return`,
+      callbackUrl: `${hostUrl}login/instagram/success`,
     },
     {
       name: "youtube",
@@ -48,13 +47,13 @@ module.exports = app => {
       clientId: process.env.YOUTUBE_ID,
       clientSecret: process.env.YOUTUBE_SECRET,
       authUrl: "/login/youtube",
-      redirectUrl: `${redirectURL}login/youtube/return`,
-      callbackUrl: `${callbackURL}login/youtube/success`,
+      redirectUrl: `login/youtube/return`,
+      callbackUrl: `${hostUrl}login/youtube/success`,
     },
   ]
 
   let chewbPassport = new ChewbPassport(app, strats, {
-    host: callbackURL,
+    host: hostUrl,
     baseRoute: "",
     logOut: true,
   })
