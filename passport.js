@@ -12,7 +12,7 @@ module.exports = app => {
 
   console.log(colors.green(`hostUrl: ${hostUrl}`));
 
-  const baseRoute = process.env.NODE_ENV === "production" ? process.env.SERVER_BASE : "/"
+  const baseRoute = process.env.NODE_ENV === "production" ? process.env.SERVER_BASE : ""
 
   let strats = [
     {
@@ -29,7 +29,7 @@ module.exports = app => {
       clientId: process.env.INSTAGRAM_ID,
       clientSecret: process.env.INSTAGRAM_SECRET,
       authUrl: "/login/instagram",
-      redirectUrl: `${baseRoute}login/instagram/return`,
+      redirectUrl: `/login/instagram/return`,
       callbackUrl: `${hostUrl}login/instagram/success`,
     },
     {
@@ -51,7 +51,7 @@ module.exports = app => {
 
   let chewbPassport = new ChewbPassport(app, strats, {
     host: hostUrl,
-    baseRoute: "",
+    baseRoute: baseRoute,
     logOut: true,
   })
 }
