@@ -36,9 +36,11 @@ const { parse } = require("path")
 //EXPRESS
 //*******************
 
+console.log(colors.green(`NODE_ENV: ${process.env.NODE_ENV}`));
+
 const app = express()
 const host =
-  process.env.NODE_ENV === "env_production" ? "127.0.0.1" : "localhost"
+  process.env.NODE_ENV === "production" ? "127.0.0.1" : "localhost"
 let server
 
 var options = {
