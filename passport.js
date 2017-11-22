@@ -12,6 +12,8 @@ module.exports = app => {
 
   console.log(colors.green(`hostUrl: ${hostUrl}`));
 
+  const baseRoute = process.env.NODE_ENV === "production" ? process.env.SERVER_BASE : "/"
+
   let strats = [
     {
       name: "facebook",
@@ -27,7 +29,7 @@ module.exports = app => {
       clientId: process.env.INSTAGRAM_ID,
       clientSecret: process.env.INSTAGRAM_SECRET,
       authUrl: "/login/instagram",
-      redirectUrl: `/login/instagram/return`,
+      redirectUrl: `${baseRoute}login/instagram/return`,
       callbackUrl: `${hostUrl}login/instagram/success`,
     },
     {
