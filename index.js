@@ -38,7 +38,7 @@ const { parse } = require("path")
 
 const app = express()
 const host =
-  process.env.NODE_ENV === "production" ? "127.0.0.1" : "localhost"
+  process.env.NODE_ENV === "env_production" ? "127.0.0.1" : "localhost"
 let server
 
 var options = {
@@ -57,7 +57,7 @@ app.use(
 var router = express.Router()
 app.use(router)
 
-const isHTTPS = process.env.PROTOCALL === "https"
+const isHTTPS = process.env.SERVER_PROTOCALL === "https"
 if (isHTTPS) {
   server = https.createServer(
     {
@@ -75,7 +75,7 @@ if (isHTTPS) {
 }
 
 console.log(
-  `Listening ${process.env.PROTOCALL} on port  ${process.env
+  `Listening ${process.env.SERVER_PROTOCALL} on port  ${process.env
     .PORT}  on  ${host}`
 )
 

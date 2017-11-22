@@ -4,7 +4,7 @@ module.exports = app => {
   const host = process.env.HOST || "localhost"
 
   const callbackURL =
-    process.env.NODE_ENV === "production"
+    process.env.NODE_ENV === "env_production"
       ? process.env.FRONT_END
       : `${process.env.PROTOCALL}://${host}:${process.env.CHOO_PORT}/`
 
